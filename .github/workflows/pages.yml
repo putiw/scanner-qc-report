@@ -1,0 +1,37 @@
+name: Publish report
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: pages
+  cancel-in-progress: true
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare site
+        run: |
+          cp -a site _site
+          python3 - <<'PYTHON'
+          import gzip, shutil
+          from pathlib import Path
+          for p in Path('compressed').glob('*.gz'):
+              with gzip.open(p, 'rb') as src, open(Path('_site') / p.name[:-3], 'wb') as dst:
+                  shutil.copyfileobj(src, dst)
+          PYTHON
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: _site
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4
